@@ -1,0 +1,1416 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+  <meta name="theme-color" content="#02050a" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Server Control" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <link rel="icon" href="./icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="./icon.svg" />
+  <title>Server Control</title>
+  <style>
+    :root{
+      --bg:#010307;
+      --bg2:#040810;
+      --bg3:#050c14;
+      --panel:#050c14;
+      --panel2:#08111b;
+      --panel3:#0b151f;
+      --stroke:rgba(255,255,255,.05);
+      --stroke-strong:rgba(255,255,255,.08);
+      --text:#f8fcff;
+      --muted:#7a8797;
+      --muted2:#556270;
+      --green:#1dffab;
+      --green2:#0be08b;
+      --green3:#57ffd3;
+      --green-soft:rgba(29,255,171,.17);
+      --blue:#29c2ff;
+      --blue-soft:rgba(41,194,255,.16);
+      --yellow:#dfff63;
+      --yellow-soft:rgba(223,255,99,.14);
+      --danger:#ff5f6d;
+      --shadow:0 22px 50px rgba(0,0,0,.5);
+      --radius:22px;
+      --radius-sm:16px;
+      --ease:cubic-bezier(.22,.9,.24,1);
+      --tab-h:84px;
+      --safe-top:env(safe-area-inset-top, 0px);
+      --safe-bottom:env(safe-area-inset-bottom, 0px);
+      --header-h:78px;
+    }
+
+    *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+    html,body{
+      width:100%;
+      height:100%;
+      margin:0;
+      overflow:hidden;
+      background:#02050a;
+    }
+    body{
+      font-family:Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color:var(--text);
+      overscroll-behavior:none;
+      touch-action:manipulation;
+    }
+
+    .app{
+      position:fixed;
+      inset:0;
+      width:100vw;
+      height:100dvh;
+      overflow:hidden;
+      background:
+        radial-gradient(54rem 26rem at 92% -5%, rgba(29,255,171,.18), transparent 36%),
+        radial-gradient(28rem 22rem at -10% 78%, rgba(41,194,255,.12), transparent 42%),
+        linear-gradient(180deg, #010307 0%, #02060b 42%, #010308 100%);
+    }
+
+    .app::before{
+      content:"";
+      position:absolute;
+      inset:0;
+      pointer-events:none;
+      background:
+        radial-gradient(22rem 14rem at 100% 0%, rgba(53,255,190,.07), transparent 44%),
+        radial-gradient(18rem 10rem at 0% 100%, rgba(41,194,255,.05), transparent 46%);
+      mix-blend-mode:screen;
+      z-index:0;
+    }
+
+    .views{
+      position:relative;
+      width:100%;
+      height:100%;
+      z-index:1;
+    }
+
+    .view{
+      position:absolute;
+      inset:0;
+      opacity:0;
+      pointer-events:none;
+      transform:translateX(22px) scale(.988);
+      transition:opacity .34s var(--ease), transform .34s var(--ease);
+      overflow:hidden;
+    }
+    .view.active{
+      opacity:1;
+      pointer-events:auto;
+      transform:translateX(0) scale(1);
+    }
+    .view.leaving-left{
+      transform:translateX(-22px) scale(.988);
+    }
+
+    .screen{
+      display:grid;
+      grid-template-rows:auto 1fr;
+      width:100%;
+      height:100%;
+      padding-top:calc(var(--safe-top) + 8px);
+      padding-bottom:calc(var(--tab-h) + var(--safe-bottom));
+    }
+
+    .screen.no-tabs{
+      padding-bottom:18px;
+    }
+
+    .header{
+      position:relative;
+      height:var(--header-h);
+      padding:0 16px;
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      flex-shrink:0;
+    }
+
+    .header.compact{
+      height:58px;
+    }
+
+    .header-main{
+      padding:0 16px 0;
+      margin-top:-6px;
+    }
+
+    .header-main h1,
+    .page-title{
+      margin:0;
+      font-size:25px;
+      line-height:1.05;
+      letter-spacing:-.03em;
+      font-weight:650;
+      color:#fbfeff;
+    }
+
+    .center-title{
+      position:absolute;
+      left:50%;
+      top:0;
+      transform:translateX(-50%);
+      width:min(72%, 420px);
+      text-align:center;
+      padding-top:2px;
+    }
+    .center-title h2{
+      margin:0;
+      font-size:17px;
+      line-height:1.05;
+      font-weight:620;
+      letter-spacing:-.02em;
+    }
+    .center-title .state{
+      margin-top:7px;
+      display:flex;
+      justify-content:center;
+      align-items:center;
+      gap:7px;
+      font-size:12px;
+      color:#86ffd0;
+    }
+    .center-title .ip{
+      margin-top:6px;
+      font-size:13px;
+      color:#718091;
+      letter-spacing:-.01em;
+    }
+
+    .dot{
+      width:7px;
+      height:7px;
+      border-radius:50%;
+      background:var(--green);
+      box-shadow:0 0 16px rgba(29,255,171,.95);
+      animation:pulse 1.8s infinite;
+    }
+    .dot.offline{
+      background:#4b5968;
+      box-shadow:none;
+      animation:none;
+    }
+
+    .icon-btn{
+      width:34px;
+      height:34px;
+      border-radius:50%;
+      border:1px solid rgba(255,255,255,.05);
+      background:rgba(255,255,255,.02);
+      box-shadow:inset 0 1px 0 rgba(255,255,255,.03);
+      display:grid;
+      place-items:center;
+      color:#d2dbe5;
+      cursor:pointer;
+      transition:transform .18s ease, border-color .2s ease, box-shadow .2s ease, color .2s ease;
+      flex:0 0 auto;
+    }
+    .icon-btn:active{transform:scale(.95)}
+    .icon-btn svg{width:17px;height:17px}
+    .icon-btn.glow{
+      color:var(--green);
+      border-color:rgba(29,255,171,.16);
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,.04),
+        0 0 0 1px rgba(29,255,171,.1),
+        0 0 24px rgba(29,255,171,.18);
+    }
+
+    .content{
+      min-height:0;
+      overflow:hidden;
+      padding:0 16px;
+    }
+    .content.scroll{
+      overflow-y:auto;
+      overscroll-behavior:contain;
+      scrollbar-width:none;
+      -webkit-overflow-scrolling:touch;
+      padding-bottom:18px;
+    }
+    .content.scroll::-webkit-scrollbar{display:none}
+
+    .search{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      height:42px;
+      padding:0 14px;
+      border-radius:14px;
+      margin-top:16px;
+      margin-bottom:18px;
+      background:linear-gradient(180deg, rgba(255,255,255,.032), rgba(255,255,255,.018));
+      border:1px solid rgba(255,255,255,.038);
+      box-shadow:inset 0 1px 0 rgba(255,255,255,.02);
+      color:#7c8996;
+    }
+    .search svg{width:15px;height:15px;opacity:.86}
+    .search input{
+      flex:1;
+      min-width:0;
+      border:0;
+      outline:0;
+      background:transparent;
+      color:#e3edf6;
+      font-size:15px;
+      font-weight:500;
+    }
+    .search input::placeholder{color:#687583}
+
+    .stack{
+      display:flex;
+      flex-direction:column;
+      gap:16px;
+      padding-bottom:10px;
+    }
+
+    .card{
+      position:relative;
+      border-radius:20px;
+      border:1px solid rgba(255,255,255,.045);
+      background:
+        linear-gradient(180deg, rgba(7,12,18,.995), rgba(3,8,13,.995));
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,.03),
+        0 18px 36px rgba(0,0,0,.34);
+    }
+
+    .server-card{
+      min-height:118px;
+      padding:16px;
+      display:grid;
+      grid-template-columns:46px 1fr auto;
+      gap:10px 14px;
+      align-items:center;
+      cursor:pointer;
+      transition:transform .16s ease, border-color .22s ease, box-shadow .22s ease;
+    }
+    .server-card:active{transform:scale(.988)}
+    .server-card.selected{
+      border-color:rgba(29,255,171,.34);
+      background:
+        radial-gradient(92% 122% at 0% 50%, rgba(29,255,171,.2), transparent 58%),
+        linear-gradient(180deg, rgba(8,13,20,.995), rgba(3,8,13,.995));
+      box-shadow:
+        inset 0 0 44px rgba(29,255,171,.11),
+        inset 0 1px 0 rgba(255,255,255,.04),
+        0 0 0 1px rgba(29,255,171,.1),
+        0 0 34px rgba(29,255,171,.13),
+        0 18px 40px rgba(0,0,0,.42);
+    }
+
+    .srv-icon{
+      width:46px;
+      height:34px;
+      border-radius:9px;
+      position:relative;
+      background:linear-gradient(180deg,#28313d,#19212a);
+      border:1px solid rgba(255,255,255,.06);
+      box-shadow:inset 0 1px 0 rgba(255,255,255,.05);
+    }
+    .srv-icon::before,.srv-icon::after{
+      content:"";
+      position:absolute;
+      left:8px;
+      right:8px;
+      height:3px;
+      border-radius:999px;
+      background:rgba(255,255,255,.08);
+    }
+    .srv-icon::before{top:10px}
+    .srv-icon::after{top:18px}
+    .srv-led{
+      position:absolute;
+      left:5px;
+      top:13px;
+      width:6px;
+      height:6px;
+      border-radius:50%;
+      background:var(--green);
+      box-shadow:0 0 12px rgba(29,255,171,.95);
+      animation:pulse 1.8s infinite;
+    }
+    .srv-led.off{
+      background:#4a5a6d;
+      box-shadow:none;
+      animation:none;
+    }
+    .srv-icon.blue .srv-led{
+      background:#43a5ff;
+      box-shadow:0 0 12px rgba(67,165,255,.85);
+    }
+
+    .srv-meta{
+      align-self:start;
+      padding-top:2px;
+      min-width:0;
+    }
+    .srv-name{
+      font-size:16px;
+      font-weight:610;
+      letter-spacing:-.02em;
+    }
+    .srv-ip{
+      margin-top:4px;
+      font-size:13px;
+      color:#8c98a5;
+    }
+
+    .pill{
+      align-self:start;
+      justify-self:end;
+      padding:6px 10px;
+      border-radius:999px;
+      font-size:11px;
+      line-height:1;
+      font-weight:650;
+      letter-spacing:.01em;
+      color:#8b97a3;
+      background:rgba(255,255,255,.03);
+      border:1px solid rgba(255,255,255,.03);
+    }
+    .pill.online{
+      color:#9affe0;
+      background:rgba(18,195,124,.13);
+      box-shadow:inset 0 0 0 1px rgba(29,255,171,.06);
+    }
+
+    .metrics{
+      grid-column:2 / 4;
+      display:flex;
+      gap:18px;
+      flex-wrap:wrap;
+      font-size:12px;
+      font-weight:550;
+      color:#758190;
+    }
+    .metrics b{font-weight:650}
+    .metrics .g{color:#24ffaf}
+    .metrics .b{color:#4bccff}
+    .metrics .m{color:#a0a9b2}
+
+    .stats-grid{
+      display:grid;
+      grid-template-columns:repeat(3,1fr);
+      gap:12px;
+      margin-top:4px;
+      margin-bottom:14px;
+    }
+    .stat{
+      min-height:94px;
+      padding:12px 12px 10px;
+      border-radius:18px;
+      background:linear-gradient(180deg, rgba(7,13,19,.99), rgba(4,9,14,.99));
+      border:1px solid rgba(255,255,255,.045);
+      box-shadow:inset 0 1px 0 rgba(255,255,255,.025);
+      display:flex;
+      flex-direction:column;
+      justify-content:space-between;
+    }
+    .stat-label{
+      font-size:14px;
+      font-weight:540;
+      color:#f1f7fd;
+    }
+    .stat-value{
+      font-size:16px;
+      font-weight:650;
+      color:#fbfeff;
+    }
+    .stat-value span{
+      font-size:39px;
+      line-height:1;
+      letter-spacing:-.05em;
+    }
+    .spark{
+      width:100%;
+      height:18px;
+      opacity:1;
+    }
+    .spark.g{filter:drop-shadow(0 0 10px rgba(29,255,171,.3))}
+    .spark.b{filter:drop-shadow(0 0 10px rgba(41,194,255,.28))}
+    .spark.y{filter:drop-shadow(0 0 10px rgba(223,255,99,.25))}
+
+    .grid-2{
+      display:grid;
+      grid-template-columns:repeat(2,1fr);
+      gap:12px;
+      margin-bottom:18px;
+    }
+    .action-card{
+      min-height:126px;
+      padding:18px 14px 15px;
+      display:flex;
+      flex-direction:column;
+      justify-content:center;
+      align-items:center;
+      gap:9px;
+      text-align:center;
+      cursor:pointer;
+      transition:transform .16s ease, border-color .2s ease, box-shadow .2s ease;
+    }
+    .action-card:active{transform:scale(.986)}
+    .action-card:hover{
+      border-color:rgba(255,255,255,.075);
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,.03),
+        0 14px 28px rgba(0,0,0,.32);
+    }
+    .action-icon{
+      width:34px;
+      height:34px;
+      display:grid;
+      place-items:center;
+      color:var(--green);
+      filter:drop-shadow(0 0 22px rgba(29,255,171,.3));
+    }
+    .action-icon svg{width:30px;height:30px}
+    .action-icon.blue{
+      color:var(--blue);
+      filter:drop-shadow(0 0 22px rgba(41,194,255,.28));
+    }
+    .action-icon.yellow{
+      color:var(--yellow);
+      filter:drop-shadow(0 0 22px rgba(223,255,99,.26));
+    }
+    .action-title{
+      font-size:16px;
+      font-weight:560;
+      letter-spacing:-.02em;
+    }
+    .action-sub{
+      font-size:13px;
+      color:#6c7887;
+    }
+
+    .section-title{
+      margin:0 0 12px;
+      font-size:15px;
+      font-weight:640;
+      letter-spacing:-.02em;
+      color:#f0f6fc;
+    }
+
+    .list{
+      display:flex;
+      flex-direction:column;
+      gap:12px;
+      padding-bottom:8px;
+    }
+    .row-action{
+      min-height:58px;
+      padding:0 16px;
+      display:flex;
+      align-items:center;
+      gap:14px;
+      cursor:pointer;
+      transition:transform .16s ease;
+    }
+    .row-action:active{transform:scale(.992)}
+    .row-icon{
+      width:26px;
+      height:26px;
+      display:grid;
+      place-items:center;
+      color:var(--green);
+      filter:drop-shadow(0 0 14px rgba(29,255,171,.24));
+      flex:0 0 auto;
+    }
+    .row-icon svg{width:22px;height:22px}
+    .row-title{
+      flex:1;
+      font-size:16px;
+      font-weight:550;
+      min-width:0;
+    }
+    .row-chevron{
+      color:#6c7887;
+      flex:0 0 auto;
+    }
+
+    .install-card,.log-card,.next-card,.settings-card{
+      padding:16px;
+      margin-bottom:14px;
+    }
+    .install-card{margin-top:6px}
+    .step{
+      font-size:14px;
+      font-weight:720;
+      color:#42ffba;
+      margin-bottom:8px;
+    }
+    .install-title{
+      font-size:18px;
+      font-weight:600;
+      letter-spacing:-.02em;
+      margin-bottom:18px;
+    }
+    .progress-track{
+      position:relative;
+      height:12px;
+      border-radius:999px;
+      overflow:hidden;
+      background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.015));
+      box-shadow:inset 0 2px 6px rgba(0,0,0,.45);
+    }
+    .progress-fill{
+      position:absolute;
+      inset:0 auto 0 0;
+      width:0%;
+      border-radius:inherit;
+      background:linear-gradient(90deg, #12f39d 0%, #31ffb2 44%, #5effd5 100%);
+      box-shadow:0 0 32px rgba(29,255,171,.4);
+      transition:width .46s var(--ease);
+    }
+    .progress-fill::after{
+      content:"";
+      position:absolute;
+      inset:0;
+      background:linear-gradient(90deg, transparent, rgba(255,255,255,.28), transparent);
+      transform:translateX(-100%);
+      animation:shimmer 2s linear infinite;
+    }
+
+    .log-list,.next-list{
+      display:flex;
+      flex-direction:column;
+      gap:12px;
+      font-size:14px;
+      color:#dfe8f1;
+    }
+    .log-item,.next-item{
+      display:flex;
+      align-items:center;
+      gap:11px;
+      min-height:20px;
+    }
+    .mark{
+      width:12px;
+      height:12px;
+      display:inline-grid;
+      place-items:center;
+      color:#5a6674;
+      font-size:14px;
+      line-height:1;
+      flex:0 0 auto;
+    }
+    .mark.done{
+      color:#42ffb9;
+      text-shadow:0 0 16px rgba(66,255,185,.45);
+    }
+    .mark.pending{color:#4f5c68}
+    .mark.loading{
+      border-radius:50%;
+      border:1.5px solid rgba(255,255,255,.12);
+      border-top-color:#5dffd1;
+      animation:spin .85s linear infinite;
+    }
+    .muted{color:#83909d}
+
+    .ghost-btn{
+      width:100%;
+      height:64px;
+      border:1px solid rgba(255,255,255,.05);
+      border-radius:18px;
+      background:linear-gradient(180deg, rgba(10,16,23,.98), rgba(5,10,16,.98));
+      color:#f5f9fd;
+      font-size:17px;
+      font-weight:540;
+      box-shadow:inset 0 1px 0 rgba(255,255,255,.02);
+      cursor:pointer;
+      transition:transform .16s ease;
+    }
+    .ghost-btn:active{transform:scale(.992)}
+
+    .field{margin-bottom:14px}
+    .field label{
+      display:block;
+      margin-bottom:8px;
+      font-size:13px;
+      font-weight:580;
+      color:#95a1af;
+    }
+    .input,.select{
+      width:100%;
+      height:48px;
+      border-radius:14px;
+      border:1px solid rgba(255,255,255,.045);
+      background:linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.015));
+      box-shadow:inset 0 1px 0 rgba(255,255,255,.02);
+      color:#f5f9fd;
+      outline:0;
+      padding:0 14px;
+      font-size:15px;
+      font-weight:520;
+    }
+    .row-2{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:12px;
+    }
+
+    .switch-row{
+      min-height:58px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:16px;
+      color:#eff5fb;
+      font-size:15px;
+      font-weight:540;
+    }
+    .switch-sub{
+      display:block;
+      margin-top:4px;
+      font-size:12px;
+      color:#7f8c9a;
+      font-weight:470;
+    }
+    .switch{
+      width:52px;
+      height:31px;
+      border-radius:999px;
+      position:relative;
+      background:#1a2530;
+      border:1px solid rgba(255,255,255,.05);
+      cursor:pointer;
+      flex:0 0 auto;
+      transition:background .2s ease, box-shadow .2s ease;
+    }
+    .switch::before{
+      content:"";
+      position:absolute;
+      top:2px;
+      left:2px;
+      width:25px;
+      height:25px;
+      border-radius:50%;
+      background:#fbfeff;
+      box-shadow:0 6px 14px rgba(0,0,0,.35);
+      transition:left .22s ease;
+    }
+    .switch.on{
+      background:rgba(29,255,171,.24);
+      box-shadow:
+        inset 0 0 0 1px rgba(29,255,171,.09),
+        0 0 24px rgba(29,255,171,.16);
+    }
+    .switch.on::before{left:23px}
+
+    .save-btn{
+      width:100%;
+      height:58px;
+      border:0;
+      border-radius:18px;
+      background:linear-gradient(180deg, #46ffbd, #15ef9d);
+      color:#03110a;
+      font-size:16px;
+      font-weight:760;
+      box-shadow:0 0 34px rgba(29,255,171,.25);
+      cursor:pointer;
+      transition:transform .16s ease;
+    }
+    .save-btn:active{transform:scale(.994)}
+
+    .tabbar{
+      position:absolute;
+      left:0;
+      right:0;
+      bottom:0;
+      height:var(--tab-h);
+      padding:8px 28px calc(var(--safe-bottom) + 14px);
+      display:flex;
+      align-items:flex-end;
+      justify-content:space-between;
+      background:
+        linear-gradient(180deg, rgba(1,3,7,0), rgba(1,3,7,.94) 26%, rgba(1,3,7,1) 100%);
+      z-index:20;
+      pointer-events:none;
+    }
+    .tabbar > *{pointer-events:auto}
+    .tab{
+      min-width:88px;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      gap:5px;
+      color:#586573;
+      font-size:11px;
+      font-weight:650;
+      cursor:pointer;
+      user-select:none;
+      transition:color .22s ease, transform .16s ease;
+    }
+    .tab:active{transform:scale(.96)}
+    .tab svg{width:22px;height:22px}
+    .tab.active{
+      color:#2dffaf;
+      filter:drop-shadow(0 0 16px rgba(29,255,171,.18));
+    }
+
+    .toast{
+      position:absolute;
+      left:50%;
+      bottom:calc(var(--tab-h) + var(--safe-bottom) + 12px);
+      transform:translateX(-50%) translateY(16px);
+      min-width:220px;
+      max-width:calc(100% - 34px);
+      padding:14px 16px;
+      border-radius:16px;
+      background:rgba(8,14,21,.98);
+      border:1px solid rgba(255,255,255,.045);
+      color:#f5f9fc;
+      font-size:14px;
+      text-align:center;
+      box-shadow:0 20px 42px rgba(0,0,0,.5);
+      opacity:0;
+      pointer-events:none;
+      transition:opacity .25s ease, transform .25s ease;
+      z-index:50;
+    }
+    .toast.show{
+      opacity:1;
+      transform:translateX(-50%) translateY(0);
+    }
+
+    .hidden{display:none !important}
+
+    @media (max-height: 760px){
+      :root{
+        --header-h:72px;
+      }
+      .server-card{min-height:108px}
+      .action-card{min-height:116px}
+    }
+
+    @media (min-width: 721px){
+      .header,
+      .header-main,
+      .content{
+        padding-left:22px;
+        padding-right:22px;
+      }
+      .tabbar{
+        padding-left:34px;
+        padding-right:34px;
+      }
+      .page-title,
+      .header-main h1{
+        font-size:28px;
+      }
+    }
+
+    @keyframes pulse{
+      0%,100%{transform:scale(1);opacity:1}
+      50%{transform:scale(1.14);opacity:.74}
+    }
+    @keyframes shimmer{
+      0%{transform:translateX(-140%)}
+      100%{transform:translateX(140%)}
+    }
+    @keyframes spin{
+      from{transform:rotate(0)}
+      to{transform:rotate(360deg)}
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="views">
+      <section class="view active" data-view="servers">
+        <div class="screen">
+          <div>
+            <div class="header compact">
+              <button class="icon-btn" data-toast="Меню — демо">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round">
+                  <circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/>
+                </svg>
+              </button>
+              <button class="icon-btn glow" data-toast="Створення сервера — демо">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round">
+                  <path d="M12 5v14M5 12h14"/>
+                </svg>
+              </button>
+            </div>
+
+            <div class="header-main">
+              <h1>Servers</h1>
+
+              <label class="search">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round">
+                  <circle cx="11" cy="11" r="6.6"/><path d="m20 20-3.5-3.5"/>
+                </svg>
+                <input id="serverSearch" placeholder="Search" />
+              </label>
+            </div>
+          </div>
+
+          <div class="content scroll">
+            <div class="stack" id="serverList">
+              <div class="card server-card selected" data-open-server="web">
+                <div class="srv-icon"><span class="srv-led"></span></div>
+                <div class="srv-meta">
+                  <div class="srv-name">Web Server</div>
+                  <div class="srv-ip">192.168.1.10</div>
+                </div>
+                <div class="pill online">Online</div>
+                <div class="metrics">
+                  <span>CPU <b class="g">23%</b></span>
+                  <span>RAM <b class="b">61%</b></span>
+                  <span>Disk <b class="m">45%</b></span>
+                </div>
+              </div>
+
+              <div class="card server-card" data-open-server="db">
+                <div class="srv-icon"><span class="srv-led"></span></div>
+                <div class="srv-meta">
+                  <div class="srv-name">DB Server</div>
+                  <div class="srv-ip">203.0.113.5</div>
+                </div>
+                <div class="pill online">Online</div>
+                <div class="metrics">
+                  <span>CPU <b class="g">14%</b></span>
+                  <span>RAM <b class="b">45%</b></span>
+                  <span>Disk <b class="m">30%</b></span>
+                </div>
+              </div>
+
+              <div class="card server-card" data-open-server="staging">
+                <div class="srv-icon blue"><span class="srv-led off"></span></div>
+                <div class="srv-meta">
+                  <div class="srv-name">Staging VPS</div>
+                  <div class="srv-ip">45.67.89.12</div>
+                </div>
+                <div class="pill">Offline</div>
+                <div class="metrics">
+                  <span>CPU <b class="m">—</b></span>
+                  <span>RAM <b class="m">—</b></span>
+                  <span>Disk <b class="m">—</b></span>
+                </div>
+              </div>
+
+              <div class="card server-card" data-open-server="dev">
+                <div class="srv-icon"><span class="srv-led"></span></div>
+                <div class="srv-meta">
+                  <div class="srv-name">Dev Server</div>
+                  <div class="srv-ip">10.0.0.15</div>
+                </div>
+                <div class="pill online">Online</div>
+                <div class="metrics">
+                  <span>CPU <b class="g">8%</b></span>
+                  <span>RAM <b class="b">32%</b></span>
+                  <span>Disk <b class="m">18%</b></span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="view" data-view="server">
+        <div class="screen">
+          <div class="header">
+            <button class="icon-btn" data-back="servers">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+                <path d="m15 18-6-6 6-6"/>
+              </svg>
+            </button>
+
+            <div class="center-title">
+              <h2 id="detailTitle">Web Server</h2>
+              <div class="state"><span class="dot" id="detailDot"></span><span id="detailState">Online</span></div>
+              <div class="ip" id="detailIp">192.168.1.10</div>
+            </div>
+
+            <button class="icon-btn" data-toast="Додаткове меню — демо">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round">
+                <circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/>
+              </svg>
+            </button>
+          </div>
+
+          <div class="content scroll">
+            <div class="stats-grid">
+              <div class="stat">
+                <div class="stat-label">CPU</div>
+                <div class="stat-value"><span id="cpuValue">23</span>%</div>
+                <svg class="spark g" viewBox="0 0 100 20" preserveAspectRatio="none">
+                  <path d="M0 15 C12 16, 18 7, 28 12 C38 17, 44 3, 56 8 C68 13, 76 6, 100 9" fill="none" stroke="#27ffb0" stroke-width="2.25"/>
+                </svg>
+              </div>
+              <div class="stat">
+                <div class="stat-label">RAM</div>
+                <div class="stat-value"><span id="ramValue">61</span>%</div>
+                <svg class="spark b" viewBox="0 0 100 20" preserveAspectRatio="none">
+                  <path d="M0 17 C14 10, 22 15, 36 11 C47 7, 55 14, 66 10 C80 5, 90 11, 100 8" fill="none" stroke="#39c7ff" stroke-width="2.25"/>
+                </svg>
+              </div>
+              <div class="stat">
+                <div class="stat-label">Disk</div>
+                <div class="stat-value"><span id="diskValue">45</span>%</div>
+                <svg class="spark y" viewBox="0 0 100 20" preserveAspectRatio="none">
+                  <path d="M0 16 C11 14, 18 8, 30 12 C44 16, 50 5, 62 8 C75 11, 84 5, 100 7" fill="none" stroke="#dfff63" stroke-width="2.25"/>
+                </svg>
+              </div>
+            </div>
+
+            <div class="grid-2">
+              <div class="card action-card" data-toast="Manage services — демо">
+                <div class="action-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 2v4"/><path d="M18.36 5.64 15.53 8.47"/><path d="M22 12h-4"/><path d="M18.36 18.36 15.53 15.53"/><path d="M12 22v-4"/><path d="M5.64 18.36 8.47 15.53"/><path d="M2 12h4"/><path d="M5.64 5.64 8.47 8.47"/><circle cx="12" cy="12" r="4.5"/>
+                  </svg>
+                </div>
+                <div class="action-title">Systemd</div>
+                <div class="action-sub">Manage services</div>
+              </div>
+
+              <div class="card action-card" data-toast="File manager — демо">
+                <div class="action-icon blue">
+                  <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M4 6.8A2.8 2.8 0 0 1 6.8 4h2.56c.74 0 1.44.3 1.96.83l1.01 1.03c.22.22.51.34.82.34H17.2A2.8 2.8 0 0 1 20 9v8.2A2.8 2.8 0 0 1 17.2 20H6.8A2.8 2.8 0 0 1 4 17.2V6.8Z"/>
+                  </svg>
+                </div>
+                <div class="action-title">Files</div>
+                <div class="action-sub">File manager</div>
+              </div>
+
+              <div class="card action-card" data-toast="SSH terminal — демо">
+                <div class="action-icon blue">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="5" width="18" height="14" rx="2.4"/><path d="m7 10 3 2-3 2"/><path d="M13 16h4"/>
+                  </svg>
+                </div>
+                <div class="action-title">Console</div>
+                <div class="action-sub">SSH terminal</div>
+              </div>
+
+              <div class="card action-card" data-toast="Quick scripts — демо">
+                <div class="action-icon yellow">
+                  <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M13.4 2 6.7 13.15h4.32L10.55 22 17.3 10.85H13L13.4 2Z"/>
+                  </svg>
+                </div>
+                <div class="action-title">Actions</div>
+                <div class="action-sub">Quick scripts</div>
+              </div>
+            </div>
+
+            <h3 class="section-title">Quick Actions</h3>
+
+            <div class="list">
+              <div class="card row-action" data-toast="Restart Nginx — демо">
+                <div class="row-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M20 11a8 8 0 1 0-2.34 5.66"/><path d="M20 4v7h-7"/>
+                  </svg>
+                </div>
+                <div class="row-title">Restart Nginx</div>
+                <div class="row-chevron">
+                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="m9 6 6 6-6 6"/>
+                  </svg>
+                </div>
+              </div>
+
+              <div class="card row-action" data-toast="Update System — демо">
+                <div class="row-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 3 5 7v10l7 4 7-4V7l-7-4Z"/><path d="m5 7 7 4 7-4"/><path d="M12 11v10"/>
+                  </svg>
+                </div>
+                <div class="row-title">Update System</div>
+                <div class="row-chevron">
+                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="m9 6 6 6-6 6"/>
+                  </svg>
+                </div>
+              </div>
+
+              <div class="card row-action" data-open-install>
+                <div class="row-icon">
+                  <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M13.4 2 6.7 13.15h4.32L10.55 22 17.3 10.85H13L13.4 2Z"/>
+                  </svg>
+                </div>
+                <div class="row-title">Install ISP Manager</div>
+                <div class="row-chevron">
+                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="m9 6 6 6-6 6"/>
+                  </svg>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="view" data-view="install">
+        <div class="screen no-tabs">
+          <div class="header">
+            <button class="icon-btn" data-back="server">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+                <path d="m15 18-6-6 6-6"/>
+              </svg>
+            </button>
+
+            <div class="center-title" style="top:2px">
+              <h2>Install ISP Manager</h2>
+            </div>
+
+            <div style="width:34px;height:34px"></div>
+          </div>
+
+          <div class="content scroll">
+            <div class="card install-card">
+              <div class="step" id="stepLabel">Step 1 of 3</div>
+              <div class="install-title" id="installTitle">Preparing System</div>
+              <div class="progress-track">
+                <div class="progress-fill" id="progressFill"></div>
+              </div>
+            </div>
+
+            <div class="card log-card">
+              <div class="log-list" id="logList"></div>
+            </div>
+
+            <div class="card next-card">
+              <h3 class="section-title" style="font-size:16px;margin-top:0">Next Steps</h3>
+              <div class="next-list" id="nextList"></div>
+            </div>
+
+            <button class="ghost-btn" id="cancelInstall">Cancel</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="view" data-view="settings">
+        <div class="screen">
+          <div>
+            <div class="header compact">
+              <button class="icon-btn" data-back="servers">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="m15 18-6-6 6-6"/>
+                </svg>
+              </button>
+              <div style="width:34px;height:34px"></div>
+            </div>
+            <div class="header-main">
+              <h1>Proxy Settings</h1>
+            </div>
+          </div>
+
+          <div class="content scroll">
+            <div class="card settings-card">
+              <div class="switch-row" style="margin-bottom:16px">
+                <div>
+                  Enable Proxy
+                  <span class="switch-sub">Use outbound proxy for connections</span>
+                </div>
+                <div class="switch on" id="proxyToggle"></div>
+              </div>
+
+              <div class="field">
+                <label>Proxy Host</label>
+                <input class="input" id="proxyHost" value="proxy.example.net" />
+              </div>
+
+              <div class="row-2">
+                <div class="field">
+                  <label>Port</label>
+                  <input class="input" id="proxyPort" value="8080" />
+                </div>
+                <div class="field">
+                  <label>Protocol</label>
+                  <select class="select" id="proxyProtocol">
+                    <option>HTTP</option>
+                    <option selected>SOCKS5</option>
+                    <option>HTTPS</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="field">
+                <label>Username</label>
+                <input class="input" id="proxyUser" value="admin_proxy" />
+              </div>
+
+              <div class="field">
+                <label>Password</label>
+                <input class="input" id="proxyPass" type="password" value="secretpass" />
+              </div>
+
+              <div class="switch-row" style="margin:6px 0 16px">
+                <div>
+                  Route SSH Through Proxy
+                  <span class="switch-sub">Pseudo-setting for demo interface</span>
+                </div>
+                <div class="switch" id="sshProxyToggle"></div>
+              </div>
+
+              <button class="save-btn" id="saveProxy">Save Proxy Settings</button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <div class="tabbar" id="tabbar">
+      <div class="tab active" data-tab="servers">
+        <svg viewBox="0 0 24 24" fill="currentColor">
+          <path d="M4 5.8A2.8 2.8 0 0 1 6.8 3h10.4A2.8 2.8 0 0 1 20 5.8v2.4A2.8 2.8 0 0 1 17.2 11H6.8A2.8 2.8 0 0 1 4 8.2V5.8Zm0 10A2.8 2.8 0 0 1 6.8 13h10.4a2.8 2.8 0 0 1 2.8 2.8v2.4A2.8 2.8 0 0 1 17.2 21H6.8A2.8 2.8 0 0 1 4 18.2v-2.4Zm3.2-9.2a1.1 1.1 0 1 0 0 2.2 1.1 1.1 0 0 0 0-2.2Zm0 10a1.1 1.1 0 1 0 0 2.2 1.1 1.1 0 0 0 0-2.2Z"/>
+        </svg>
+        <span>Servers</span>
+      </div>
+      <div class="tab" data-tab="settings">
+        <svg viewBox="0 0 24 24" fill="currentColor">
+          <path d="m19.43 12.98.04-.98-.04-.98 2.02-1.58a.7.7 0 0 0 .16-.9l-1.91-3.3a.72.72 0 0 0-.86-.3l-2.37.95a7.77 7.77 0 0 0-1.7-.98l-.36-2.53a.72.72 0 0 0-.7-.6H10.3a.72.72 0 0 0-.71.6l-.36 2.53c-.6.22-1.17.54-1.7.98l-2.37-.95a.72.72 0 0 0-.86.3L2.4 8.54a.7.7 0 0 0 .16.9l2.02 1.58-.04.98.04.98-2.02 1.58a.7.7 0 0 0-.16.9l1.91 3.3c.18.31.56.44.86.3l2.37-.95c.52.44 1.1.76 1.7.98l.36 2.53c.05.35.35.6.71.6h3.42c.35 0 .65-.25.7-.6l.36-2.53c.6-.22 1.18-.54 1.7-.98l2.37.95c.3.14.68 0 .86-.3l1.91-3.3a.7.7 0 0 0-.16-.9l-2.02-1.58ZM12 15.5A3.5 3.5 0 1 1 12 8.5a3.5 3.5 0 0 1 0 7Z"/>
+        </svg>
+        <span>Settings</span>
+      </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+  </div>
+
+  <script>
+    const views = [...document.querySelectorAll('.view')];
+    const tabs = [...document.querySelectorAll('.tab')];
+    const serverCards = [...document.querySelectorAll('.server-card')];
+    const toast = document.getElementById('toast');
+
+    const serverData = {
+      web: { title: 'Web Server', ip: '192.168.1.10', cpu: 23, ram: 61, disk: 45, online: true },
+      db: { title: 'DB Server', ip: '203.0.113.5', cpu: 14, ram: 45, disk: 30, online: true },
+      staging: { title: 'Staging VPS', ip: '45.67.89.12', cpu: 0, ram: 0, disk: 0, online: false },
+      dev: { title: 'Dev Server', ip: '10.0.0.15', cpu: 8, ram: 32, disk: 18, online: true }
+    };
+
+    let currentView = 'servers';
+    let currentServer = 'web';
+    let installTimer = null;
+
+    const detailTitle = document.getElementById('detailTitle');
+    const detailIp = document.getElementById('detailIp');
+    const detailState = document.getElementById('detailState');
+    const detailDot = document.getElementById('detailDot');
+    const cpuValue = document.getElementById('cpuValue');
+    const ramValue = document.getElementById('ramValue');
+    const diskValue = document.getElementById('diskValue');
+
+    const installTitle = document.getElementById('installTitle');
+    const stepLabel = document.getElementById('stepLabel');
+    const progressFill = document.getElementById('progressFill');
+    const logList = document.getElementById('logList');
+    const nextList = document.getElementById('nextList');
+
+    const installPhases = [
+      {
+        progress: 68,
+        step: 'Step 1 of 3',
+        title: 'Preparing System',
+        logs: [
+          ['loading', 'Connecting to server...'],
+          ['pending', 'Server connection established'],
+          ['pending', 'Updating package lists...'],
+          ['pending', 'Installing required packages...'],
+          ['pending', 'Configuring system...']
+        ],
+        next: [true, false, false]
+      },
+      {
+        progress: 86,
+        step: 'Step 2 of 3',
+        title: 'Installing Components',
+        logs: [
+          ['done', 'Connecting to server...'],
+          ['done', 'Server connection established'],
+          ['loading', 'Updating package lists...'],
+          ['pending', 'Installing required packages...'],
+          ['pending', 'Configuring system...']
+        ],
+        next: [true, false, false]
+      },
+      {
+        progress: 100,
+        step: 'Step 3 of 3',
+        title: 'Finalizing Installation',
+        logs: [
+          ['done', 'Connecting to server...'],
+          ['done', 'Server connection established'],
+          ['done', 'Updating package lists...'],
+          ['done', 'Installing required packages...'],
+          ['loading', 'Configuring system...']
+        ],
+        next: [true, true, false]
+      },
+      {
+        progress: 100,
+        step: 'Completed',
+        title: 'ISP Manager Ready',
+        logs: [
+          ['done', 'Connecting to server...'],
+          ['done', 'Server connection established'],
+          ['done', 'Updating package lists...'],
+          ['done', 'Installing required packages...'],
+          ['done', 'Configuring system...']
+        ],
+        next: [true, true, true]
+      }
+    ];
+
+    function showToast(text){
+      toast.textContent = text;
+      toast.classList.add('show');
+      clearTimeout(showToast._t);
+      showToast._t = setTimeout(() => toast.classList.remove('show'), 1600);
+    }
+
+    function setView(name, direction = 'forward'){
+      if(currentView === name) return;
+
+      views.forEach(v => {
+        const isCurrent = v.dataset.view === currentView;
+        v.classList.remove('leaving-left');
+        if(isCurrent && direction === 'forward') v.classList.add('leaving-left');
+      });
+
+      views.forEach(v => {
+        v.classList.toggle('active', v.dataset.view === name);
+        const scroller = v.querySelector('.content.scroll');
+        if(v.dataset.view === name && scroller) scroller.scrollTop = 0;
+      });
+
+      currentView = name;
+
+      tabs.forEach(tab => {
+        tab.classList.toggle(
+          'active',
+          tab.dataset.tab === name ||
+          ((name === 'server' || name === 'install') && tab.dataset.tab === 'servers')
+        );
+      });
+    }
+
+    function setServer(key){
+      currentServer = key;
+      const s = serverData[key];
+      detailTitle.textContent = s.title;
+      detailIp.textContent = s.ip;
+      detailState.textContent = s.online ? 'Online' : 'Offline';
+      detailDot.classList.toggle('offline', !s.online);
+
+      cpuValue.textContent = s.online ? s.cpu : 0;
+      ramValue.textContent = s.online ? s.ram : 0;
+      diskValue.textContent = s.online ? s.disk : 0;
+
+      serverCards.forEach(card => card.classList.toggle('selected', card.dataset.openServer === key));
+    }
+
+    function renderLogs(items){
+      logList.innerHTML = items.map(([state, text]) => {
+        if(state === 'loading') return `<div class="log-item"><span class="mark loading"></span><span>${text}</span></div>`;
+        if(state === 'done') return `<div class="log-item"><span class="mark done">✓</span><span>${text}</span></div>`;
+        return `<div class="log-item"><span class="mark pending">•</span><span class="muted">${text}</span></div>`;
+      }).join('');
+    }
+
+    function renderNext(flags){
+      const labels = ['Install ISP Manager', 'Configure Settings', 'Finish Installation'];
+      nextList.innerHTML = labels.map((label, i) => {
+        const done = flags[i];
+        return `<div class="next-item"><span class="mark ${done ? 'done' : 'pending'}">${done ? '✓' : '○'}</span><span class="${done ? '' : 'muted'}">${label}</span></div>`;
+      }).join('');
+    }
+
+    function updateInstallPhase(index){
+      const phase = installPhases[Math.min(index, installPhases.length - 1)];
+      stepLabel.textContent = phase.step;
+      installTitle.textContent = phase.title;
+      progressFill.style.width = phase.progress + '%';
+      renderLogs(phase.logs);
+      renderNext(phase.next);
+    }
+
+    function startInstallSequence(){
+      clearInterval(installTimer);
+      let i = 0;
+      updateInstallPhase(i);
+      installTimer = setInterval(() => {
+        i += 1;
+        updateInstallPhase(i);
+        if(i >= installPhases.length - 1) clearInterval(installTimer);
+      }, 1800);
+    }
+
+    document.querySelectorAll('[data-open-server]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        setServer(btn.dataset.openServer);
+        setView('server');
+      });
+    });
+
+    document.querySelectorAll('[data-back]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const target = btn.dataset.back;
+        if(target === 'servers') setView('servers', 'back');
+        if(target === 'server') setView('server', 'back');
+      });
+    });
+
+    document.querySelectorAll('[data-open-install]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        setView('install');
+        startInstallSequence();
+      });
+    });
+
+    document.getElementById('cancelInstall').addEventListener('click', () => {
+      clearInterval(installTimer);
+      showToast('Встановлення скасовано');
+      setView('server', 'back');
+    });
+
+    document.querySelectorAll('[data-toast]').forEach(btn => {
+      btn.addEventListener('click', () => showToast(btn.dataset.toast));
+    });
+
+    tabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        const key = tab.dataset.tab;
+        if(key === 'servers') setView('servers', 'back');
+        if(key === 'settings') setView('settings');
+      });
+    });
+
+    document.getElementById('serverSearch').addEventListener('input', (e) => {
+      const q = e.target.value.trim().toLowerCase();
+      serverCards.forEach(card => {
+        const text = card.innerText.toLowerCase();
+        card.classList.toggle('hidden', q && !text.includes(q));
+      });
+    });
+
+    document.querySelectorAll('.switch').forEach(sw => {
+      sw.addEventListener('click', () => sw.classList.toggle('on'));
+    });
+
+    document.getElementById('saveProxy').addEventListener('click', () => {
+      showToast('Proxy settings saved');
+    });
+
+    document.addEventListener('touchmove', (e) => {
+      const scroller = e.target.closest('.content.scroll');
+      if(!scroller) e.preventDefault();
+    }, { passive:false });
+
+    setServer('web');
+    updateInstallPhase(0);
+  </script>
+</body>
+</html>
