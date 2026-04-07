@@ -38,7 +38,7 @@
       --radius:22px;
       --radius-sm:16px;
       --ease:cubic-bezier(.22,.9,.24,1);
-      --tab-h:84px;
+      --tab-h:68px;
       --safe-top:env(safe-area-inset-top, 0px);
       --safe-bottom:env(safe-area-inset-bottom, 0px);
       --header-h:78px;
@@ -718,20 +718,16 @@
     .save-btn:active{transform:scale(.994)}
 
     .tabbar{
-      position:absolute;
-      left:0;
-      right:0;
-      bottom:0;
-      height:var(--tab-h);
-      padding: 8px 28px 14px;
-      display:flex;
-      align-items:flex-end;
-      justify-content:space-between;
-      background:
-        linear-gradient(180deg, rgba(1,3,7,0), rgba(1,3,7,.94) 26%, rgba(1,3,7,1) 100%);
-      z-index:20;
-      pointer-events:none;
-    }
+  position:absolute;
+  left:0;
+  right:0;
+  bottom:0;
+  height:var(--tab-h);
+  padding: 6px 28px 8px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+}
     .tabbar > *{pointer-events:auto}
     .tab{
       min-width:88px;
